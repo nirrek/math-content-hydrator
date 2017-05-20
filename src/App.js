@@ -1,6 +1,5 @@
 import React, { Component } from 'react';
 import ReactDOM from 'react-dom';
-import katex from 'katex';
 
 // This would be the soupified ckhtml math content returned by the server.
 const mathContentFromServer = `
@@ -14,18 +13,6 @@ const mathContentFromServer = `
   <h1><span class="mathquill-embedded-latex">a^{b + c^d} = \\Sigma d_3^2</span></h1>
 </p>
 `;
-
-// Example math component
-class InlineLatex extends React.Component {
-  componentDidMount() {
-    if (!this.node || !this.props.children) return;
-    katex.render(this.props.children, this.node);
-  }
-
-  render() {
-    return <div ref={node => (this.node = node)} />;
-  }
-}
 
 // Given an html string (which represents an html serialization of math content)
 // creates a DOM fragment in which any serialized math content is replaced
@@ -51,7 +38,17 @@ function hydrateMathContent(serializedContent: string): Node {
 
 function mountInlineLatexComponents(docFragment: Node) {
   [...docFragment.querySelectorAll('.mathquill-embedded-latex')].forEach(el => {
-    ReactDOM.render(<InlineLatex>{el.textContent}</InlineLatex>, el);
+    // We can async load the math components if they have huge transitive deps
+    // otherwise we can just statically import. In this case InlineLatexMathComponent
+    // has katex as a dep, so we'll async load this only when required on the page.
+    import(
+      './InlineLatexMathComponent.js',
+    ).then(({ default: InlineLatexMathComponent }) => {
+      ReactDOM.render(
+        <InlineLatexMathComponent>{el.textContent}</InlineLatexMathComponent>,
+        el,
+      );
+    });
   });
 }
 
